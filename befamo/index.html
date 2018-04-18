@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+	<style type="text/css">
+		body,
+		html {
+			width: 100%;
+			/*height: 100%;*/
+			margin: 0;
+			font-family: "微软雅黑";
+		}
+
+		#allmap {
+			width: 100%;
+			height: 100%;
+			position: absolute;
+			top: 0;
+		}
+
+		p {
+			margin-left: 5px;
+			font-size: 14px;
+		}
+	</style>
+	<script type="text/javascript" src="http://api.map.baidu.com/api?v=2.0&ak=OOCMkciR67G8F6FweqjlQRpc"></script>
+	<title>添加复杂内容的信息窗口</title>
+</head>
+
+<body>
+<div id="allmap"></div>
+<p>点击标注点，可查看由文本，图片构成的复杂型信息窗口</p>
+</body>
+
+</html>
+<script type="text/javascript">
+    var flag = new BMap.Icon('img/flag.png', new BMap.Size(30, 30), {
+        offset: new BMap.Size(10, 10)
+    });
+    var myIcon = new BMap.Icon('img/my.png', new BMap.Size(30, 30), {
+        offset: new BMap.Size(10, 10)
+    })
+    var geolocation = new BMap.Geolocation();
+    var myLatLng = [];
+    function getMyPosition(){
+        geolocation.getCurrentPosition(function(r) { //获取当前位置  并可以拖拽
+            if(this.getStatus() == BMAP_STATUS_SUCCESS) {
+
+
+                var mk = new BMap.Marker(r.point, {
+                    icon: myIcon
+                });
+                mk.disableMassClear()
+                map.addOverlay(mk);
+                map.panTo(r.point);
+                myLatLng[0] = r.point.lat;
+                myLatLng[1] = r.point.lng;
+                mk.enableDragging(); //允许拖拽
+                mk.addEventListener("dragend", getAttr);
+                function getAttr() {
+
+                    map.clearOverlays()
+                    var p = mk.getPosition(); //获取marker的位置
+                    var myPoint = new BMap.Point(p.lng, p.lat);
+                    addMarker(myPoint);
+                }
+
+            } else {
+                //			alert('failed'+this.getStatus());
+            }
+
+            getAttr();
+        }, { enableHighAccuracy: true })
+    }
+    var markerArr = [{ title: "武侯区",score:"96分", content: "欢迎来到成都", point: "104.068923|30.590943", isOpen: 0, icon: { w: 23, h: 25, l: 46, t: 21, x: 9, lb: 12 } },
+        { title: "成华区", content: "欢迎来到成都22",score:"85分" , point: "104.098923|30.673943", isOpen: 0, icon: { w: 23, h: 25, l: 46, t: 21, x: 9, lb: 12 } }];
+
+    function initMap() {
+        createMap(); //创建地图
+        setMapEvent(); //设置地图事件
+        addMapControl(); //向地图添加控件
+        getMyPosition(); //向地图中添加marker
+    }
+
+    function createMap() {
+        var map = new BMap.Map("allmap"); //在百度地图容器中创建一个地图
+        var point = new BMap.Point(104.067923, 30.679943); //定义一个中心点坐标
+        map.centerAndZoom(point, 13); //设定地图的中心点和坐标并将地图显示在地图容器中
+        window.map = map; //将map变量存储在全局
+    }
+
+    function setMapEvent() {
+        map.enableDragging(); //启用地图拖拽事件，默认启用(可不写)
+        map.enableScrollWheelZoom(); //启用地图滚轮放大缩小
+        map.enableDoubleClickZoom(); //启用鼠标双击放大，默认启用(可不写)
+        map.enableKeyboard(); //启用键盘上下左右键移动地图
+    }
+    //地图控件添加函数：
+    function addMapControl() {
+        //向地图中添加缩放控件
+        var ctrl_nav = new BMap.NavigationControl({ anchor: BMAP_ANCHOR_TOP_LEFT, type: BMAP_NAVIGATION_CONTROL_SMALL });
+        map.addControl(ctrl_nav);
+        //向地图中添加缩略图控件
+        var ctrl_ove = new BMap.OverviewMapControl({ anchor: BMAP_ANCHOR_BOTTOM_RIGHT, isOpen: 0 });
+        map.addControl(ctrl_ove);
+        //向地图中添加比例尺控件
+        var ctrl_sca = new BMap.ScaleControl({ anchor: BMAP_ANCHOR_BOTTOM_LEFT });
+        map.addControl(ctrl_sca);
+    }
+
+    function addMarker(myPoint) {
+        var a="";
+        for(var i = 0; i < markerArr.length; i++) {
+            var json = markerArr[i];
+            var p0 = json.point.split("|")[0];
+            var p1 = json.point.split("|")[1];
+            var point = new BMap.Point(p0, p1);
+            if(myPoint){
+                a = (Math.round(map.getDistance(myPoint, point) / 100) / 10).toFixed(1) + '公里';
+            }else{
+                a = "";
+            }
+            var iconImg = flag;
+            var marker = new BMap.Marker(point, { icon: iconImg });
+            var iw = createInfoWindow(i);
+            var label = new BMap.Label('<b>'+json.title+'</b> </br> '+a+'   '+ json.score, { "offset": new BMap.Size(30, 0) });
+            marker.setLabel(label);
+            map.addOverlay(marker);
+            marker.enableMassClear()
+            label.setStyle({
+                borderColor: "#808080",
+                color: "#333",
+                cursor: "pointer"
+            });
+            (function() {
+                var index = i;
+                var _iw = createInfoWindow(i);
+                var _marker = marker;
+                _marker.addEventListener("click", function() {
+                    this.openInfoWindow(_iw);
+                });
+                _iw.addEventListener("open", function() {
+                    _marker.getLabel().hide();
+                })
+                _iw.addEventListener("close", function() {
+                    _marker.getLabel().show();
+                })
+                label.addEventListener("click", function() {
+                    _marker.openInfoWindow(_iw);
+                })
+                if(!!json.isOpen) {
+                    label.hide();
+                    _marker.openInfoWindow(_iw);
+                }
+            })()
+        }
+    }
+    //创建InfoWindow
+    function createInfoWindow(i) {
+        var json = markerArr[i];
+        var iw = new BMap.InfoWindow("<b class='iw_poi_title' title='" + json.title + "'>" + json.title + "</b><div class='iw_poi_content'>" + json.content + "</div>");
+        return iw;
+    }
+    //创建一个Icon
+    function createIcon(json) {
+        var icon = new BMap.Icon("/img/flag.png", new BMap.Size(json.w, json.h), { imageOffset: new BMap.Size(-json.l, -json.t), infoWindowOffset: new BMap.Size(json.lb + 5, 1), offset: new BMap.Size(json.x, json.h) })
+        return icon;
+    }
+
+    initMap();
+</script>
